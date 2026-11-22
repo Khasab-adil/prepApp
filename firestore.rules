@@ -1,0 +1,472 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Shared hardened primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isVerified() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidTimestampCreate(data) {
+      return data.createdAt == request.time && data.updatedAt == request.time;
+    }
+
+    function isValidTimestampUpdate(data, prev) {
+      return data.createdAt == prev.createdAt && data.updatedAt == request.time;
+    }
+
+    // Entity validators
+    function isValidUserAccount(data, userId) {
+      return data.keys().hasAll(['uid', 'email', 'displayName', 'photoURL', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'displayName', 'photoURL', 'createdAt', 'updatedAt'])
+        && data.uid is string && data.uid == userId && data.uid.size() <= 128
+        && data.email is string && data.email.size() <= 254
+        && data.displayName is string && data.displayName.size() <= 120
+        && data.photoURL is string && data.photoURL.size() <= 1000;
+    }
+
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll([
+          'uid', 'fullName', 'email', 'currentEducation', 'currentRole',
+          'yearsOfExperience', 'currentSkills', 'targetRole', 'targetSalaryLpa',
+          'dailyStudyHours', 'preferredLanguage', 'targetLocation', 'jobSearchTimeline',
+          'onboardingCompleted', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'fullName', 'email', 'currentEducation', 'currentRole',
+          'yearsOfExperience', 'currentSkills', 'targetRole', 'targetSalaryLpa',
+          'dailyStudyHours', 'preferredLanguage', 'targetLocation', 'jobSearchTimeline',
+          'onboardingCompleted', 'createdAt', 'updatedAt'
+        ])
+        && data.uid is string && data.uid == userId && data.uid.size() <= 128
+        && data.fullName is string && data.fullName.size() >= 1 && data.fullName.size() <= 120
+        && data.email is string && data.email.size() <= 254
+        && data.currentEducation is string && data.currentEducation.size() <= 160
+        && data.currentRole is string && data.currentRole.size() <= 120
+        && data.yearsOfExperience is number && data.yearsOfExperience >= 0 && data.yearsOfExperience <= 60
+        && data.currentSkills is list && data.currentSkills.size() <= 40
+        && (data.currentSkills.size() == 0 || data.currentSkills[0] is string)
+        && data.targetRole is string && data.targetRole.size() >= 1 && data.targetRole.size() <= 120
+        && data.targetSalaryLpa is number && data.targetSalaryLpa >= 1 && data.targetSalaryLpa <= 300
+        && data.dailyStudyHours is number && data.dailyStudyHours >= 0.5 && data.dailyStudyHours <= 16
+        && data.preferredLanguage is string && data.preferredLanguage.size() <= 40
+        && data.targetLocation is string && data.targetLocation.size() <= 120
+        && data.jobSearchTimeline is string && data.jobSearchTimeline.size() <= 60
+        && data.onboardingCompleted is bool;
+    }
+
+    function isValidUserSkill(data, userId) {
+      return data.keys().hasAll(['uid', 'name', 'category', 'score', 'targetScore', 'basis', 'source', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'name', 'category', 'score', 'targetScore', 'basis', 'source', 'createdAt', 'updatedAt'])
+        && data.uid is string && data.uid == userId && data.uid.size() <= 128
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 100
+        && data.category is string && data.category.size() >= 1 && data.category.size() <= 80
+        && data.score is number && data.score >= 0 && data.score <= 100
+        && data.targetScore is number && data.targetScore >= 0 && data.targetScore <= 100
+        && data.basis is string && data.basis.size() <= 400
+        && data.source in ['seed', 'assessment', 'self_reported', 'practice'];
+    }
+
+    function isValidAssessment(data, userId) {
+      return data.keys().hasAll([
+          'uid', 'title', 'focusAreas', 'status', 'overallScore', 'scoreBasis',
+          'strongAreas', 'weakAreas', 'summaryFeedback', 'questions', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'title', 'focusAreas', 'status', 'overallScore', 'scoreBasis',
+          'strongAreas', 'weakAreas', 'summaryFeedback', 'questions', 'createdAt', 'updatedAt'
+        ])
+        && data.uid is string && data.uid == userId && data.uid.size() <= 128
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 160
+        && data.focusAreas is list && data.focusAreas.size() <= 20
+        && data.status in ['in_progress', 'completed']
+        && data.overallScore is number && data.overallScore >= 0 && data.overallScore <= 100
+        && data.scoreBasis is string && data.scoreBasis.size() <= 600
+        && data.strongAreas is list && data.strongAreas.size() <= 20
+        && data.weakAreas is list && data.weakAreas.size() <= 20
+        && data.summaryFeedback is string && data.summaryFeedback.size() <= 3000
+        && data.questions is list && data.questions.size() <= 30;
+    }
+
+    function isValidRoadmap(data, userId) {
+      return data.keys().hasAll([
+          'uid', 'title', 'horizonDays', 'targetRole', 'targetSalaryLpa',
+          'dailyHours', 'isActive', 'phases', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'title', 'horizonDays', 'targetRole', 'targetSalaryLpa',
+          'dailyHours', 'isActive', 'phases', 'createdAt', 'updatedAt'
+        ])
+        && data.uid is string && data.uid == userId && data.uid.size() <= 128
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 160
+        && data.horizonDays in [7, 30, 60, 90]
+        && data.targetRole is string && data.targetRole.size() >= 1 && data.targetRole.size() <= 120
+        && data.targetSalaryLpa is number && data.targetSalaryLpa >= 1 && data.targetSalaryLpa <= 300
+        && data.dailyHours is number && data.dailyHours >= 0.5 && data.dailyHours <= 16
+        && data.isActive is bool
+        && data.phases is list && data.phases.size() <= 12;
+    }
+
+    function isValidDailyTask(data, userId) {
+      return data.keys().hasAll([
+          'uid', 'date', 'roadmapId', 'topicTitle', 'category', 'durationMinutes',
+          'learningContent', 'practiceQuestion', 'userAnswer', 'aiFeedback',
+          'score', 'status', 'completedDate', 'isSeeded', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'date', 'roadmapId', 'topicTitle', 'category', 'durationMinutes',
+          'learningContent', 'practiceQuestion', 'userAnswer', 'aiFeedback',
+          'score', 'status', 'completedDate', 'isSeeded', 'createdAt', 'updatedAt'
+        ])
+        && data.uid is string && data.uid == userId && data.uid.size() <= 128
+        && data.date is string && data.date.size() == 10 && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && data.roadmapId is string && data.roadmapId.size() <= 128
+        && data.topicTitle is string && data.topicTitle.size() >= 1 && data.topicTitle.size() <= 180
+        && data.category is string && data.category.size() >= 1 && data.category.size() <= 80
+        && data.durationMinutes is number && data.durationMinutes >= 5 && data.durationMinutes <= 480
+        && data.learningContent is string && data.learningContent.size() <= 6000
+        && data.practiceQuestion is string && data.practiceQuestion.size() <= 2000
+        && data.userAnswer is string && data.userAnswer.size() <= 6000
+        && data.aiFeedback is string && data.aiFeedback.size() <= 4000
+        && data.score is number && data.score >= 0 && data.score <= 100
+        && data.status in ['pending', 'in_progress', 'completed', 'deferred']
+        && data.completedDate is string && data.completedDate.size() <= 40
+        && data.isSeeded is bool;
+    }
+
+    function isValidTutorThread(data, userId) {
+      return data.keys().hasAll(['uid', 'topic', 'level', 'roadmapPhase', 'messages', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'topic', 'level', 'roadmapPhase', 'messages', 'createdAt', 'updatedAt'])
+        && data.uid is string && data.uid == userId && data.uid.size() <= 128
+        && data.topic is string && data.topic.size() >= 1 && data.topic.size() <= 180
+        && data.level in ['Beginner', 'Intermediate', 'Advanced']
+        && data.roadmapPhase is string && data.roadmapPhase.size() <= 160
+        && data.messages is list && data.messages.size() <= 100;
+    }
+
+    function isValidJobAnalysis(data, userId) {
+      return data.keys().hasAll([
+          'uid', 'company', 'jobTitle', 'rawDescription', 'requiredExperience',
+          'requiredSkills', 'preferredSkills', 'toolsAndTech', 'responsibilities',
+          'matchingSkills', 'partialSkills', 'missingSkills', 'recommendedTopics',
+          'prepChecklist', 'honestAssessment', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'company', 'jobTitle', 'rawDescription', 'requiredExperience',
+          'requiredSkills', 'preferredSkills', 'toolsAndTech', 'responsibilities',
+          'matchingSkills', 'partialSkills', 'missingSkills', 'recommendedTopics',
+          'prepChecklist', 'honestAssessment', 'createdAt', 'updatedAt'
+        ])
+        && data.uid is string && data.uid == userId && data.uid.size() <= 128
+        && data.company is string && data.company.size() <= 120
+        && data.jobTitle is string && data.jobTitle.size() >= 1 && data.jobTitle.size() <= 140
+        && data.rawDescription is string && data.rawDescription.size() <= 12000
+        && data.requiredExperience is string && data.requiredExperience.size() <= 120
+        && data.requiredSkills is list && data.requiredSkills.size() <= 40
+        && data.preferredSkills is list && data.preferredSkills.size() <= 40
+        && data.toolsAndTech is list && data.toolsAndTech.size() <= 40
+        && data.responsibilities is list && data.responsibilities.size() <= 30
+        && data.matchingSkills is list && data.matchingSkills.size() <= 40
+        && data.partialSkills is list && data.partialSkills.size() <= 40
+        && data.missingSkills is list && data.missingSkills.size() <= 40
+        && data.recommendedTopics is list && data.recommendedTopics.size() <= 30
+        && data.prepChecklist is list && data.prepChecklist.size() <= 30
+        && data.honestAssessment is string && data.honestAssessment.size() <= 3000;
+    }
+
+    function isValidMockInterview(data, userId) {
+      return data.keys().hasAll([
+          'uid', 'track', 'difficulty', 'status', 'overallScore',
+          'recurringWeaknesses', 'improvementPlan', 'qaItems', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'track', 'difficulty', 'status', 'overallScore',
+          'recurringWeaknesses', 'improvementPlan', 'qaItems', 'createdAt', 'updatedAt'
+        ])
+        && data.uid is string && data.uid == userId && data.uid.size() <= 128
+        && data.track is string && data.track.size() >= 1 && data.track.size() <= 60
+        && data.difficulty is string && data.difficulty.size() >= 1 && data.difficulty.size() <= 60
+        && data.status in ['in_progress', 'completed']
+        && data.overallScore is number && data.overallScore >= 0 && data.overallScore <= 100
+        && data.recurringWeaknesses is list && data.recurringWeaknesses.size() <= 20
+        && data.improvementPlan is list && data.improvementPlan.size() <= 20
+        && data.qaItems is list && data.qaItems.size() <= 15;
+    }
+
+    function isValidCodingSubmission(data, userId) {
+      return data.keys().hasAll([
+          'uid', 'problemId', 'problemTitle', 'difficulty', 'language', 'code',
+          'status', 'score', 'timeComplexity', 'spaceComplexity', 'aiFeedback',
+          'edgeCasesMissed', 'improvedApproach', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'problemId', 'problemTitle', 'difficulty', 'language', 'code',
+          'status', 'score', 'timeComplexity', 'spaceComplexity', 'aiFeedback',
+          'edgeCasesMissed', 'improvedApproach', 'createdAt', 'updatedAt'
+        ])
+        && data.uid is string && data.uid == userId && data.uid.size() <= 128
+        && data.problemId is string && data.problemId.size() >= 1 && data.problemId.size() <= 128
+        && data.problemTitle is string && data.problemTitle.size() >= 1 && data.problemTitle.size() <= 180
+        && data.difficulty in ['Easy', 'Medium', 'Hard']
+        && data.language is string && data.language.size() <= 40
+        && data.code is string && data.code.size() <= 16000
+        && data.status in ['passed', 'needs_improvement']
+        && data.score is number && data.score >= 0 && data.score <= 100
+        && data.timeComplexity is string && data.timeComplexity.size() <= 120
+        && data.spaceComplexity is string && data.spaceComplexity.size() <= 120
+        && data.aiFeedback is string && data.aiFeedback.size() <= 4000
+        && data.edgeCasesMissed is list && data.edgeCasesMissed.size() <= 20
+        && data.improvedApproach is string && data.improvedApproach.size() <= 4000;
+    }
+
+    function isValidPortfolioProject(data, userId) {
+      return data.keys().hasAll([
+          'uid', 'title', 'difficulty', 'targetRole', 'summary', 'techStack',
+          'architectureNotes', 'databaseDesign', 'apiSpecs', 'milestones',
+          'testingChecklist', 'deploymentChecklist', 'resumeBullets', 'isSeeded',
+          'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'title', 'difficulty', 'targetRole', 'summary', 'techStack',
+          'architectureNotes', 'databaseDesign', 'apiSpecs', 'milestones',
+          'testingChecklist', 'deploymentChecklist', 'resumeBullets', 'isSeeded',
+          'createdAt', 'updatedAt'
+        ])
+        && data.uid is string && data.uid == userId && data.uid.size() <= 128
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 180
+        && data.difficulty is string && data.difficulty.size() <= 60
+        && data.targetRole is string && data.targetRole.size() <= 120
+        && data.summary is string && data.summary.size() <= 1500
+        && data.techStack is list && data.techStack.size() <= 20
+        && data.architectureNotes is string && data.architectureNotes.size() <= 4000
+        && data.databaseDesign is string && data.databaseDesign.size() <= 4000
+        && data.apiSpecs is list && data.apiSpecs.size() <= 30
+        && data.milestones is list && data.milestones.size() <= 20
+        && data.testingChecklist is list && data.testingChecklist.size() <= 20
+        && data.deploymentChecklist is list && data.deploymentChecklist.size() <= 20
+        && data.resumeBullets is list && data.resumeBullets.size() <= 10
+        && data.isSeeded is bool;
+    }
+
+    function isValidActivityLog(data, userId) {
+      return data.keys().hasAll([
+          'uid', 'date', 'minutesStudied', 'tasksCompleted', 'aiTokensUsed',
+          'actionType', 'note', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'date', 'minutesStudied', 'tasksCompleted', 'aiTokensUsed',
+          'actionType', 'note', 'createdAt', 'updatedAt'
+        ])
+        && data.uid is string && data.uid == userId && data.uid.size() <= 128
+        && data.date is string && data.date.size() == 10 && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && data.minutesStudied is number && data.minutesStudied >= 0 && data.minutesStudied <= 1440
+        && data.tasksCompleted is number && data.tasksCompleted >= 0 && data.tasksCompleted <= 100
+        && data.aiTokensUsed is number && data.aiTokensUsed >= 0 && data.aiTokensUsed <= 1000000
+        && data.actionType is string && data.actionType.size() <= 80
+        && data.note is string && data.note.size() <= 400;
+    }
+
+    // User root document
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && isValidId(userId)
+        && isValidUserAccount(incoming(), userId)
+        && isValidTimestampCreate(incoming());
+      allow update: if isOwner(userId) && isValidId(userId)
+        && isValidUserAccount(incoming(), userId)
+        && isValidTimestampUpdate(incoming(), existing())
+        && incoming().uid == existing().uid
+        && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'displayName', 'photoURL', 'updatedAt']);
+      allow delete: if false;
+
+      match /profile/{profileId} {
+        allow get: if isOwner(userId) && isValidId(profileId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(profileId)
+          && isValidUserProfile(incoming(), userId)
+          && isValidTimestampCreate(incoming());
+        allow update: if isOwner(userId) && isValidId(profileId)
+          && isValidUserProfile(incoming(), userId)
+          && isValidTimestampUpdate(incoming(), existing())
+          && incoming().uid == existing().uid
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'fullName', 'email', 'currentEducation', 'currentRole',
+            'yearsOfExperience', 'currentSkills', 'targetRole', 'targetSalaryLpa',
+            'dailyStudyHours', 'preferredLanguage', 'targetLocation', 'jobSearchTimeline',
+            'onboardingCompleted', 'updatedAt'
+          ]);
+        allow delete: if false;
+      }
+
+      match /skills/{skillId} {
+        allow get: if isOwner(userId) && isValidId(skillId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(skillId)
+          && isValidUserSkill(incoming(), userId)
+          && isValidTimestampCreate(incoming());
+        allow update: if isOwner(userId) && isValidId(skillId)
+          && isValidUserSkill(incoming(), userId)
+          && isValidTimestampUpdate(incoming(), existing())
+          && incoming().uid == existing().uid
+          && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'category', 'score', 'targetScore', 'basis', 'source', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(skillId);
+      }
+
+      match /assessments/{assessmentId} {
+        allow get: if isOwner(userId) && isValidId(assessmentId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(assessmentId)
+          && isValidAssessment(incoming(), userId)
+          && isValidTimestampCreate(incoming());
+        allow update: if isOwner(userId) && isValidId(assessmentId)
+          && isValidAssessment(incoming(), userId)
+          && isValidTimestampUpdate(incoming(), existing())
+          && incoming().uid == existing().uid
+          && existing().status != 'completed'
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'status', 'overallScore', 'scoreBasis', 'strongAreas',
+            'weakAreas', 'summaryFeedback', 'questions', 'updatedAt'
+          ]);
+        allow delete: if isOwner(userId) && isValidId(assessmentId);
+      }
+
+      match /roadmaps/{roadmapId} {
+        allow get: if isOwner(userId) && isValidId(roadmapId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(roadmapId)
+          && isValidRoadmap(incoming(), userId)
+          && isValidTimestampCreate(incoming());
+        allow update: if isOwner(userId) && isValidId(roadmapId)
+          && isValidRoadmap(incoming(), userId)
+          && isValidTimestampUpdate(incoming(), existing())
+          && incoming().uid == existing().uid
+          && incoming().diff(existing()).affectedKeys().hasOnly(['isActive', 'phases', 'dailyHours', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(roadmapId);
+      }
+
+      match /dailyTasks/{taskId} {
+        allow get: if isOwner(userId) && isValidId(taskId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(taskId)
+          && isValidDailyTask(incoming(), userId)
+          && isValidTimestampCreate(incoming());
+        allow update: if isOwner(userId) && isValidId(taskId)
+          && isValidDailyTask(incoming(), userId)
+          && isValidTimestampUpdate(incoming(), existing())
+          && incoming().uid == existing().uid
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'durationMinutes', 'userAnswer', 'aiFeedback', 'score', 'status', 'completedDate', 'updatedAt'
+          ]);
+        allow delete: if isOwner(userId) && isValidId(taskId) && existing().status != 'completed';
+      }
+
+      match /tutorThreads/{threadId} {
+        allow get: if isOwner(userId) && isValidId(threadId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(threadId)
+          && isValidTutorThread(incoming(), userId)
+          && isValidTimestampCreate(incoming());
+        allow update: if isOwner(userId) && isValidId(threadId)
+          && isValidTutorThread(incoming(), userId)
+          && isValidTimestampUpdate(incoming(), existing())
+          && incoming().uid == existing().uid
+          && incoming().diff(existing()).affectedKeys().hasOnly(['level', 'messages', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(threadId);
+      }
+
+      match /jobAnalyses/{analysisId} {
+        allow get: if isOwner(userId) && isValidId(analysisId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(analysisId)
+          && isValidJobAnalysis(incoming(), userId)
+          && isValidTimestampCreate(incoming());
+        allow update: if isOwner(userId) && isValidId(analysisId)
+          && isValidJobAnalysis(incoming(), userId)
+          && isValidTimestampUpdate(incoming(), existing())
+          && incoming().uid == existing().uid
+          && incoming().diff(existing()).affectedKeys().hasOnly(['prepChecklist', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(analysisId);
+      }
+
+      match /mockInterviews/{interviewId} {
+        allow get: if isOwner(userId) && isValidId(interviewId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(interviewId)
+          && isValidMockInterview(incoming(), userId)
+          && isValidTimestampCreate(incoming());
+        allow update: if isOwner(userId) && isValidId(interviewId)
+          && isValidMockInterview(incoming(), userId)
+          && isValidTimestampUpdate(incoming(), existing())
+          && incoming().uid == existing().uid
+          && existing().status != 'completed'
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'status', 'overallScore', 'recurringWeaknesses', 'improvementPlan', 'qaItems', 'updatedAt'
+          ]);
+        allow delete: if isOwner(userId) && isValidId(interviewId);
+      }
+
+      match /codingSubmissions/{submissionId} {
+        allow get: if isOwner(userId) && isValidId(submissionId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(submissionId)
+          && isValidCodingSubmission(incoming(), userId)
+          && isValidTimestampCreate(incoming());
+        allow update: if false;
+        allow delete: if isOwner(userId) && isValidId(submissionId);
+      }
+
+      match /projects/{projectId} {
+        allow get: if isOwner(userId) && isValidId(projectId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(projectId)
+          && isValidPortfolioProject(incoming(), userId)
+          && isValidTimestampCreate(incoming());
+        allow update: if isOwner(userId) && isValidId(projectId)
+          && isValidPortfolioProject(incoming(), userId)
+          && isValidTimestampUpdate(incoming(), existing())
+          && incoming().uid == existing().uid
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'milestones', 'testingChecklist', 'deploymentChecklist', 'updatedAt'
+          ]);
+        allow delete: if isOwner(userId) && isValidId(projectId);
+      }
+
+      match /activityLogs/{logId} {
+        allow get: if isOwner(userId) && isValidId(logId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(logId)
+          && isValidActivityLog(incoming(), userId)
+          && isValidTimestampCreate(incoming());
+        allow update: if false;
+        allow delete: if isOwner(userId) && isValidId(logId);
+      }
+    }
+  }
+}

@@ -1,0 +1,423 @@
+{
+  "entities": {
+    "UserAccount": {
+      "title": "User Account",
+      "description": "Root user identity document linked to Firebase Auth UID.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "email": { "type": "string", "format": "email", "maxLength": 254 },
+        "displayName": { "type": "string", "maxLength": 120 },
+        "photoURL": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "displayName", "createdAt", "updatedAt"]
+    },
+    "UserProfile": {
+      "title": "Career Profile",
+      "description": "Job seeker career targets, current role, skills, and study constraints.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "fullName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "email": { "type": "string", "maxLength": 254 },
+        "currentEducation": { "type": "string", "maxLength": 160 },
+        "currentRole": { "type": "string", "maxLength": 120 },
+        "yearsOfExperience": { "type": "number" },
+        "currentSkills": { "type": "array" },
+        "targetRole": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "targetSalaryLpa": { "type": "number" },
+        "dailyStudyHours": { "type": "number" },
+        "preferredLanguage": { "type": "string", "maxLength": 40 },
+        "targetLocation": { "type": "string", "maxLength": 120 },
+        "jobSearchTimeline": { "type": "string", "maxLength": 60 },
+        "onboardingCompleted": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "uid",
+        "fullName",
+        "email",
+        "currentEducation",
+        "currentRole",
+        "yearsOfExperience",
+        "currentSkills",
+        "targetRole",
+        "targetSalaryLpa",
+        "dailyStudyHours",
+        "preferredLanguage",
+        "targetLocation",
+        "jobSearchTimeline",
+        "onboardingCompleted",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "UserSkill": {
+      "title": "User Skill",
+      "description": "Tracked proficiency score and transparent basis for a technical or soft skill.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "category": { "type": "string", "maxLength": 80 },
+        "score": { "type": "number" },
+        "targetScore": { "type": "number" },
+        "basis": { "type": "string", "maxLength": 400 },
+        "source": { "type": "string", "enum": ["seed", "assessment", "self_reported", "practice"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "category", "score", "targetScore", "basis", "source", "createdAt", "updatedAt"]
+    },
+    "Assessment": {
+      "title": "Skill Assessment",
+      "description": "Persisted AI-evaluated skill assessment session with questions, answers, and gap summary.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 160 },
+        "focusAreas": { "type": "array" },
+        "status": { "type": "string", "enum": ["in_progress", "completed"] },
+        "overallScore": { "type": "number" },
+        "scoreBasis": { "type": "string", "maxLength": 600 },
+        "strongAreas": { "type": "array" },
+        "weakAreas": { "type": "array" },
+        "summaryFeedback": { "type": "string", "maxLength": 3000 },
+        "questions": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "uid",
+        "title",
+        "focusAreas",
+        "status",
+        "overallScore",
+        "scoreBasis",
+        "strongAreas",
+        "weakAreas",
+        "summaryFeedback",
+        "questions",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Roadmap": {
+      "title": "Study Roadmap",
+      "description": "Personalized 7/30/60/90-day prerequisite-ordered learning roadmap.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 160 },
+        "horizonDays": { "type": "number" },
+        "targetRole": { "type": "string", "maxLength": 120 },
+        "targetSalaryLpa": { "type": "number" },
+        "dailyHours": { "type": "number" },
+        "isActive": { "type": "boolean" },
+        "phases": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "uid",
+        "title",
+        "horizonDays",
+        "targetRole",
+        "targetSalaryLpa",
+        "dailyHours",
+        "isActive",
+        "phases",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "DailyTask": {
+      "title": "Daily Study Task",
+      "description": "Scheduled daily learning mission item with practice prompt and AI evaluation.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "maxLength": 10 },
+        "roadmapId": { "type": "string", "maxLength": 128 },
+        "topicTitle": { "type": "string", "maxLength": 180 },
+        "category": { "type": "string", "maxLength": 80 },
+        "durationMinutes": { "type": "number" },
+        "learningContent": { "type": "string", "maxLength": 6000 },
+        "practiceQuestion": { "type": "string", "maxLength": 2000 },
+        "userAnswer": { "type": "string", "maxLength": 6000 },
+        "aiFeedback": { "type": "string", "maxLength": 4000 },
+        "score": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "in_progress", "completed", "deferred"] },
+        "completedDate": { "type": "string", "maxLength": 40 },
+        "isSeeded": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "uid",
+        "date",
+        "roadmapId",
+        "topicTitle",
+        "category",
+        "durationMinutes",
+        "learningContent",
+        "practiceQuestion",
+        "userAnswer",
+        "aiFeedback",
+        "score",
+        "status",
+        "completedDate",
+        "isSeeded",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "TutorThread": {
+      "title": "AI Tutor Conversation",
+      "description": "Contextual multi-level AI learning assistant conversation thread.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "topic": { "type": "string", "maxLength": 180 },
+        "level": { "type": "string", "enum": ["Beginner", "Intermediate", "Advanced"] },
+        "roadmapPhase": { "type": "string", "maxLength": 160 },
+        "messages": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "topic", "level", "roadmapPhase", "messages", "createdAt", "updatedAt"]
+    },
+    "JobAnalysis": {
+      "title": "Job Description Analysis",
+      "description": "Extracted JD requirements and honest skill-gap comparison report.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "company": { "type": "string", "maxLength": 120 },
+        "jobTitle": { "type": "string", "maxLength": 140 },
+        "rawDescription": { "type": "string", "maxLength": 12000 },
+        "requiredExperience": { "type": "string", "maxLength": 120 },
+        "requiredSkills": { "type": "array" },
+        "preferredSkills": { "type": "array" },
+        "toolsAndTech": { "type": "array" },
+        "responsibilities": { "type": "array" },
+        "matchingSkills": { "type": "array" },
+        "partialSkills": { "type": "array" },
+        "missingSkills": { "type": "array" },
+        "recommendedTopics": { "type": "array" },
+        "prepChecklist": { "type": "array" },
+        "honestAssessment": { "type": "string", "maxLength": 3000 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "uid",
+        "company",
+        "jobTitle",
+        "rawDescription",
+        "requiredExperience",
+        "requiredSkills",
+        "preferredSkills",
+        "toolsAndTech",
+        "responsibilities",
+        "matchingSkills",
+        "partialSkills",
+        "missingSkills",
+        "recommendedTopics",
+        "prepChecklist",
+        "honestAssessment",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "MockInterview": {
+      "title": "Mock Interview Session",
+      "description": "Interactive interview evaluation history and weakness tracking.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "track": { "type": "string", "maxLength": 60 },
+        "difficulty": { "type": "string", "maxLength": 60 },
+        "status": { "type": "string", "enum": ["in_progress", "completed"] },
+        "overallScore": { "type": "number" },
+        "recurringWeaknesses": { "type": "array" },
+        "improvementPlan": { "type": "array" },
+        "qaItems": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "uid",
+        "track",
+        "difficulty",
+        "status",
+        "overallScore",
+        "recurringWeaknesses",
+        "improvementPlan",
+        "qaItems",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "CodingSubmission": {
+      "title": "Coding Submission",
+      "description": "Java coding practice attempt and AI evaluation feedback.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "problemId": { "type": "string", "maxLength": 128 },
+        "problemTitle": { "type": "string", "maxLength": 180 },
+        "difficulty": { "type": "string", "enum": ["Easy", "Medium", "Hard"] },
+        "language": { "type": "string", "maxLength": 40 },
+        "code": { "type": "string", "maxLength": 16000 },
+        "status": { "type": "string", "enum": ["passed", "needs_improvement"] },
+        "score": { "type": "number" },
+        "timeComplexity": { "type": "string", "maxLength": 120 },
+        "spaceComplexity": { "type": "string", "maxLength": 120 },
+        "aiFeedback": { "type": "string", "maxLength": 4000 },
+        "edgeCasesMissed": { "type": "array" },
+        "improvedApproach": { "type": "string", "maxLength": 4000 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "uid",
+        "problemId",
+        "problemTitle",
+        "difficulty",
+        "language",
+        "code",
+        "status",
+        "score",
+        "timeComplexity",
+        "spaceComplexity",
+        "aiFeedback",
+        "edgeCasesMissed",
+        "improvedApproach",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "PortfolioProject": {
+      "title": "Portfolio Project",
+      "description": "Guided portfolio project with architecture, DB schema, API specs, and milestone checklists.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 180 },
+        "difficulty": { "type": "string", "maxLength": 60 },
+        "targetRole": { "type": "string", "maxLength": 120 },
+        "summary": { "type": "string", "maxLength": 1500 },
+        "techStack": { "type": "array" },
+        "architectureNotes": { "type": "string", "maxLength": 4000 },
+        "databaseDesign": { "type": "string", "maxLength": 4000 },
+        "apiSpecs": { "type": "array" },
+        "milestones": { "type": "array" },
+        "testingChecklist": { "type": "array" },
+        "deploymentChecklist": { "type": "array" },
+        "resumeBullets": { "type": "array" },
+        "isSeeded": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "uid",
+        "title",
+        "difficulty",
+        "targetRole",
+        "summary",
+        "techStack",
+        "architectureNotes",
+        "databaseDesign",
+        "apiSpecs",
+        "milestones",
+        "testingChecklist",
+        "deploymentChecklist",
+        "resumeBullets",
+        "isSeeded",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ActivityLog": {
+      "title": "Study Activity Log",
+      "description": "Daily study minutes, completed tasks, and AI token usage telemetry.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "maxLength": 10 },
+        "minutesStudied": { "type": "number" },
+        "tasksCompleted": { "type": "number" },
+        "aiTokensUsed": { "type": "number" },
+        "actionType": { "type": "string", "maxLength": 80 },
+        "note": { "type": "string", "maxLength": 400 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "uid",
+        "date",
+        "minutesStudied",
+        "tasksCompleted",
+        "aiTokensUsed",
+        "actionType",
+        "note",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserAccount" },
+      "description": "Root account document for authenticated user."
+    },
+    "/users/{userId}/profile/{profileId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User career profile and learning preferences."
+    },
+    "/users/{userId}/skills/{skillId}": {
+      "schema": { "$ref": "#/entities/UserSkill" },
+      "description": "Per-user skill proficiency matrix."
+    },
+    "/users/{userId}/assessments/{assessmentId}": {
+      "schema": { "$ref": "#/entities/Assessment" },
+      "description": "User skill assessment sessions and scores."
+    },
+    "/users/{userId}/roadmaps/{roadmapId}": {
+      "schema": { "$ref": "#/entities/Roadmap" },
+      "description": "Personalized multi-phase study roadmaps."
+    },
+    "/users/{userId}/dailyTasks/{taskId}": {
+      "schema": { "$ref": "#/entities/DailyTask" },
+      "description": "Daily scheduled study tasks and completion logs."
+    },
+    "/users/{userId}/tutorThreads/{threadId}": {
+      "schema": { "$ref": "#/entities/TutorThread" },
+      "description": "Contextual AI tutor conversation threads."
+    },
+    "/users/{userId}/jobAnalyses/{analysisId}": {
+      "schema": { "$ref": "#/entities/JobAnalysis" },
+      "description": "Job description extraction and skill-gap reports."
+    },
+    "/users/{userId}/mockInterviews/{interviewId}": {
+      "schema": { "$ref": "#/entities/MockInterview" },
+      "description": "AI mock interview sessions and improvement plans."
+    },
+    "/users/{userId}/codingSubmissions/{submissionId}": {
+      "schema": { "$ref": "#/entities/CodingSubmission" },
+      "description": "Java coding practice submissions and AI reviews."
+    },
+    "/users/{userId}/projects/{projectId}": {
+      "schema": { "$ref": "#/entities/PortfolioProject" },
+      "description": "Guided backend portfolio projects and checklists."
+    },
+    "/users/{userId}/activityLogs/{logId}": {
+      "schema": { "$ref": "#/entities/ActivityLog" },
+      "description": "Daily study session logs, streaks, and token tracking."
+    }
+  }
+}

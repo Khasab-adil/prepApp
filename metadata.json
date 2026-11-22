@@ -1,0 +1,6 @@
+{
+  "name": "AabPrepKarro AI",
+  "description": "Your Personal AI Career Coach — Learn smarter. Prepare better. Get hired.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
